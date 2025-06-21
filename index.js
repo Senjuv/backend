@@ -6,22 +6,25 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+// Pool configurado para producción usando variable de entorno
 const pool = new Pool({
-  user: 'postgres',
-  host: 'localhost',
-  database: 'gomitas_db',
-  password: '1234',
-  port: 5432,
+  connectionString: process.env.DATABASE_URL || 'postgres://postgres:1234@localhost:5432/gomitas_db',
+  ssl: process.env.DATABASE_URL ? { rejectUnauthorized: false } : false,
+});
+
+// Ruta raíz para verificar que el backend está vivo
+app.get('/', (req, res) => {
+  res.send('API Backend de Gomitas funcionando correctamente');
 });
 
 // --- Rutas para Tiendas ---
-
 app.get('/tiendas', async (req, res) => {
   try {
     const result = await pool.query('SELECT * FROM tiendas ORDER BY id');
     res.json(result.rows);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error(err);
+    res.status(500).json({ error: err.message || 'Error desconocido' });
   }
 });
 
@@ -46,7 +49,6 @@ app.get('/tiendas/:id', async (req, res) => {
 
     const entregas = await pool.query('SELECT * FROM entregas WHERE tienda_id = $1 ORDER BY fecha DESC', [id]);
 
-    // Cálculos financieros
     const CostoUnitario = 5.24;
     const PrecioVenta = 10;
 
@@ -136,6 +138,7 @@ app.post('/finanzas', async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
+
 // Obtener todas las cotizaciones
 app.get('/cotizaciones', async (req, res) => {
   try {
@@ -178,5 +181,5 @@ app.post('/cotizaciones', async (req, res) => {
   }
 });
 
-const PORT = 3000;
+const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`Servidor escuchando en puerto ${PORT}`));
