@@ -1,15 +1,18 @@
 const express = require('express');
 const cors = require('cors');
 const { Pool } = require('pg');
+require('dotenv').config(); // ✅ Para cargar .env localmente
 
 const app = express();
 app.use(cors());
 app.use(express.json());
 
-// Pool configurado para producción usando variable de entorno
+// Configurar conexión a PostgreSQL con variable de entorno
 const pool = new Pool({
-  connectionString: process.env.DATABASE_URL || 'postgres://postgres:1234@localhost:5432/gomitas_db',
-  ssl: process.env.DATABASE_URL ? { rejectUnauthorized: false } : false,
+  connectionString: process.env.DATABASE_URL,
+  ssl: {
+    rejectUnauthorized: false,
+  },
 });
 
 // Ruta raíz para verificar que el backend está vivo
@@ -17,12 +20,13 @@ app.get('/', (req, res) => {
   res.send('API Backend de Gomitas funcionando correctamente');
 });
 
+// --- Rutas Tiendas ---
 app.get('/tiendas', async (req, res) => {
   try {
     const result = await pool.query('SELECT * FROM tiendas ORDER BY id');
     res.json(result.rows);
   } catch (err) {
-    console.error('❌ ERROR EN /tiendas:', err);  // <-- esto
+    console.error('❌ ERROR EN /tiendas:', err);
     res.status(500).json({ error: err.message || 'Error desconocido' });
   }
 });
@@ -78,6 +82,7 @@ app.get('/tiendas/:id', async (req, res) => {
   }
 });
 
+// --- Rutas Entregas ---
 app.get('/entregas', async (req, res) => {
   try {
     const result = await pool.query('SELECT * FROM entregas ORDER BY fecha DESC');
@@ -111,7 +116,7 @@ app.delete('/entregas/:id', async (req, res) => {
   }
 });
 
-// --- Rutas para Cotizaciones ---
+// --- Rutas Finanzas ---
 app.get('/finanzas', async (req, res) => {
   try {
     const result = await pool.query('SELECT * FROM finanzas ORDER BY fecha DESC LIMIT 1');
@@ -124,7 +129,6 @@ app.get('/finanzas', async (req, res) => {
   }
 });
 
-// Agregar o actualizar finanzas (nuevo registro)
 app.post('/finanzas', async (req, res) => {
   const { dinero_actual, dinero_esperado } = req.body;
   try {
@@ -138,7 +142,7 @@ app.post('/finanzas', async (req, res) => {
   }
 });
 
-// Obtener todas las cotizaciones
+// --- Rutas Cotizaciones ---
 app.get('/cotizaciones', async (req, res) => {
   try {
     const result = await pool.query('SELECT * FROM cotizaciones ORDER BY fecha DESC');
@@ -148,7 +152,6 @@ app.get('/cotizaciones', async (req, res) => {
   }
 });
 
-// Crear una cotización y guardar en finanzas
 app.post('/cotizaciones', async (req, res) => {
   const { cantidad_bolsas, dinero_actual } = req.body;
   const bolsasPorKilo = 25;
@@ -168,7 +171,6 @@ app.post('/cotizaciones', async (req, res) => {
       [cantidad_bolsas, kilos_calculados, costo_total, ingreso_esperado, ganancia_esperada]
     );
 
-    // También guardar en finanzas
     await pool.query(
       `INSERT INTO finanzas (dinero_actual, dinero_esperado) VALUES ($1, $2)`,
       [dinero_actual, ingreso_esperado]
@@ -180,5 +182,6 @@ app.post('/cotizaciones', async (req, res) => {
   }
 });
 
+// Iniciar servidor
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`Servidor escuchando en puerto ${PORT}`));
