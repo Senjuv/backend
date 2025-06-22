@@ -17,13 +17,12 @@ app.get('/', (req, res) => {
   res.send('API Backend de Gomitas funcionando correctamente');
 });
 
-// --- Rutas para Tiendas ---
 app.get('/tiendas', async (req, res) => {
   try {
     const result = await pool.query('SELECT * FROM tiendas ORDER BY id');
     res.json(result.rows);
   } catch (err) {
-    console.error(err);
+    console.error('❌ ERROR EN /tiendas:', err);  // <-- esto
     res.status(500).json({ error: err.message || 'Error desconocido' });
   }
 });
